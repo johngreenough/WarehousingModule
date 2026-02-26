@@ -2,11 +2,11 @@
 
 ## Data Explanation
 
-The order data is split across three CSV files that must be read together:
+The order data is split across three CSV files (in `inputs/`) that must be read together:
 
-- `order_itemtypes.csv`
-- `order_quantities.csv`
-- `orders_totes.csv`
+- `inputs/order_itemtypes.csv`
+- `inputs/order_quantities.csv`
+- `inputs/orders_totes.csv`
 
 ### How row/position matching works
 
@@ -105,16 +105,16 @@ From the project root:
 
 `python3 optimize_optionality.py`
 
-This reads:
+This reads (by default):
 
-- `order_itemtypes.csv`
-- `order_quantities.csv`
-- `orders_totes.csv`
+- `inputs/order_itemtypes.csv`
+- `inputs/order_quantities.csv`
+- `inputs/orders_totes.csv`
 
 And writes:
 
-- `optimized_sorter_input.csv` (sorter-ready input format)
-- `optimized_pick_plan.csv` (detailed step-by-step plan)
+- `outputs/optimized_sorter_input.csv` (sorter-ready input format)
+- `outputs/optimized_pick_plan.csv` (detailed step-by-step plan)
 
 ### Tune behavior
 
@@ -128,7 +128,7 @@ You can tune objective trade-offs:
 - `--start-tote` sets the initial source tote.
 - `--start-order-bin` sets the initial destination order bin.
 - `--num-conveyors` sets how many conveyors exist; output `conv_num` is constrained to `0..num_conveyors-1` (default `0..3`).
-- `--policy` chooses `greedy` or `beam`.
+- `--policy` chooses `greedy`, `beam`, or `random` (use `both` for all).
 - `--beam-width` / `--beam-depth` control lookahead breadth/depth for beam search.
 
 Example:
@@ -153,13 +153,44 @@ You can run Monte Carlo comparisons under timing uncertainty:
 
 This writes:
 
-- `simulation_runs.csv`: one row per run per policy.
-- `simulation_summary.csv`: mean/P90 metrics by policy.
-- `pareto_front.csv`: non-dominated policies (best trade-offs).
+- `outputs/simulation_runs.csv`: one row per run per policy.
+- `outputs/simulation_summary.csv`: mean/P90 metrics by policy.
+- `outputs/pareto_front.csv`: non-dominated policies (best trade-offs).
+
+`--policy both` runs `greedy`, `beam`, and `random` baseline for comparison.
+
+### Sensitivity analysis
+
+Run a deterministic parameter sweep:
+
+`python3 optimize_optionality.py --sensitivity-runs --policy both`
+
+This writes:
+
+- `outputs/sensitivity_results.csv`
+
+Default grid values:
+
+- `--sens-tote-switch-grid 3.0,4.0,5.0`
+- `--sens-bin-switch-grid 0.5,0.75,1.0`
+- `--sens-place-time-grid 1.5,1.75,2.0`
+
+### Validation (model-vs-model)
+
+Run repeated stochastic validation and compare win rates:
+
+`python3 optimize_optionality.py --validate-runs 120 --policy both`
+
+This writes:
+
+- `outputs/validation_runs.csv`
+- `outputs/validation_summary.csv`
+
+`time_win_rate` is the share of runs where that policy had the lowest total time.
 
 ### What Pareto output means
 
-`pareto_front.csv` keeps only solutions where no other solution is strictly better in all objectives.
+`outputs/pareto_front.csv` keeps only solutions where no other solution is strictly better in all objectives.
 
 In this project the objectives are:
 
@@ -169,6 +200,13 @@ In this project the objectives are:
 - higher `mean_optionality`
 
 So a Pareto solution is a valid "best trade-off" point, even if it is not the single fastest.
+
+## Project folders
+
+- `models/` contains model entrypoints (e.g., `models/run_optimizer.py`)
+- `models/optimizer/` contains modular optimizer code (`cli`, `policy`, `analysis`, `io`, `data`)
+- `inputs/` contains source CSV inputs
+- `outputs/` contains generated plans, simulations, sensitivity, and validation results
 
 ### Input interpretation (exactly what gets optimized)
 

@@ -1,5 +1,17 @@
 #!/usr/bin/env python3
 """
+Compatibility entrypoint.
+Core optimizer modules live under models/optimizer/.
+"""
+
+from models.optimizer import main
+
+
+if __name__ == "__main__":
+    main()
+
+#!/usr/bin/env python3
+"""
 Hybrid warehouse picker optimizer:
 - Minimize time (tote/bin switching + place time)
 - Maximize optionality (future decision flexibility)
@@ -245,6 +257,13 @@ def _pick_next_greedy(
     return best_idx
 
 
+def _pick_next_random(remaining):
+    candidates = _active_candidates(remaining)
+    if not candidates:
+        return None
+    return random.choice(candidates)
+
+
 def _pick_next_beam(
     tasks,
     remaining,
@@ -345,6 +364,8 @@ def optimize(
                 beam_width,
                 beam_depth,
             )
+        elif policy == "random":
+            chosen_idx = _pick_next_random(remaining)
         else:
             chosen_idx = _pick_next_greedy(
                 tasks,
@@ -510,7 +531,7 @@ def _is_dominated(point, points):
 
 
 def run_simulations(tasks, args):
-    policies = ["greedy", "beam"] if args.policy == "both" else [args.policy]
+    policies = ["greedy", "beam", "random"] if args.policy == "both" else [args.policy]
     run_rows = []
 
     for run_id in range(1, args.simulate_runs + 1):
@@ -567,6 +588,7 @@ def run_simulations(tasks, args):
             )
 
     runs_path = Path(args.sim_output)
+    runs_path.parent.mkdir(parents=True, exist_ok=True)
     with runs_path.open("w", newline="") as f:
         fieldnames = [
             "run_id",
@@ -606,6 +628,7 @@ def run_simulations(tasks, args):
         )
 
     summary_path = Path(args.sim_summary_output)
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
     with summary_path.open("w", newline="") as f:
         fieldnames = [
             "policy",
@@ -623,6 +646,7 @@ def run_simulations(tasks, args):
 
     pareto_rows = [row for row in summary_rows if not _is_dominated(row, summary_rows)]
     pareto_path = Path(args.pareto_output)
+    pareto_path.parent.mkdir(parents=True, exist_ok=True)
     with pareto_path.open("w", newline="") as f:
         fieldnames = [
             "policy",
@@ -641,21 +665,204 @@ def run_simulations(tasks, args):
     return runs_path, summary_path, pareto_path, len(run_rows), len(pareto_rows)
 
 
+def _parse_float_grid(text):
+    return [float(x.strip()) for x in text.split(",") if x.strip() != ""]
+
+
+def run_sensitivity_analysis(tasks, args):
+    policies = ["greedy", "beam", "random"] if args.policy == "both" else [args.policy]
+    tote_grid = _parse_float_grid(args.sens_tote_switch_grid)
+    bin_grid = _parse_float_grid(args.sens_bin_switch_grid)
+    place_grid = _parse_float_grid(args.sens_place_time_grid)
+
+    rows = []
+    case_id = 1
+    for tote_switch_time in tote_grid:
+        for bin_switch_time in bin_grid:
+            for place_time in place_grid:
+                for policy in policies:
+                    plan = optimize(
+                        tasks=tasks,
+                        start_tote=args.start_tote,
+                        start_order_bin=args.start_order_bin,
+                        tote_switch_time=tote_switch_time,
+                        bin_switch_time=bin_switch_time,
+                        place_time=place_time,
+                        time_weight=args.time_weight,
+                        optionality_weight=args.optionality_weight,
+                        policy=policy,
+                        beam_width=args.beam_width,
+                        beam_depth=args.beam_depth,
+                    )
+                    m = _plan_metrics(plan)
+                    rows.append(
+                        {
+                            "case_id": case_id,
+                            "policy": policy,
+                            "tote_switch_time": tote_switch_time,
+                            "bin_switch_time": bin_switch_time,
+                            "place_time": place_time,
+                            "total_time": m["total_time"],
+                            "steps": m["steps"],
+                            "tote_switches": m["tote_switches"],
+                            "bin_switches": m["bin_switches"],
+                            "avg_optionality_component": m["avg_optionality_component"],
+                        }
+                    )
+                case_id += 1
+
+    out_path = Path(args.sensitivity_output)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", newline="") as f:
+        fieldnames = [
+            "case_id",
+            "policy",
+            "tote_switch_time",
+            "bin_switch_time",
+            "place_time",
+            "total_time",
+            "steps",
+            "tote_switches",
+            "bin_switches",
+            "avg_optionality_component",
+        ]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+
+    return out_path, len(rows)
+
+
+def run_validation(tasks, args):
+    policies = ["greedy", "beam", "random"] if args.policy == "both" else [args.policy]
+    rows = []
+    for run_id in range(1, args.validate_runs + 1):
+        tote_switch_time = max(
+            0.0,
+            random.gauss(
+                args.tote_switch_time,
+                max(0.0001, args.tote_switch_time * args.sim_time_noise),
+            ),
+        )
+        bin_switch_time = max(
+            0.0,
+            random.gauss(
+                args.bin_switch_time,
+                max(0.0001, args.bin_switch_time * args.sim_time_noise),
+            ),
+        )
+        place_time = max(
+            0.0,
+            random.gauss(
+                args.place_time,
+                max(0.0001, args.place_time * args.sim_time_noise),
+            ),
+        )
+
+        per_policy = []
+        for policy in policies:
+            plan = optimize(
+                tasks=tasks,
+                start_tote=args.start_tote,
+                start_order_bin=args.start_order_bin,
+                tote_switch_time=tote_switch_time,
+                bin_switch_time=bin_switch_time,
+                place_time=place_time,
+                time_weight=args.time_weight,
+                optionality_weight=args.optionality_weight,
+                policy=policy,
+                beam_width=args.beam_width,
+                beam_depth=args.beam_depth,
+            )
+            m = _plan_metrics(plan)
+            rec = {
+                "run_id": run_id,
+                "policy": policy,
+                "total_time": m["total_time"],
+                "tote_switches": m["tote_switches"],
+                "bin_switches": m["bin_switches"],
+                "avg_optionality_component": m["avg_optionality_component"],
+            }
+            per_policy.append(rec)
+            rows.append(rec)
+
+        if per_policy:
+            best_time = min(r["total_time"] for r in per_policy)
+            for r in per_policy:
+                r["time_win"] = 1 if r["total_time"] == best_time else 0
+
+    summary = []
+    grouped = {}
+    for r in rows:
+        grouped.setdefault(r["policy"], []).append(r)
+
+    for policy, data in grouped.items():
+        summary.append(
+            {
+                "policy": policy,
+                "runs": len(data),
+                "mean_total_time": statistics.mean(d["total_time"] for d in data),
+                "mean_tote_switches": statistics.mean(d["tote_switches"] for d in data),
+                "mean_bin_switches": statistics.mean(d["bin_switches"] for d in data),
+                "mean_optionality": statistics.mean(d["avg_optionality_component"] for d in data),
+                "time_win_rate": statistics.mean(d.get("time_win", 0) for d in data),
+            }
+        )
+
+    details_path = Path(args.validation_output)
+    summary_path = Path(args.validation_summary_output)
+    details_path.parent.mkdir(parents=True, exist_ok=True)
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with details_path.open("w", newline="") as f:
+        fieldnames = [
+            "run_id",
+            "policy",
+            "total_time",
+            "tote_switches",
+            "bin_switches",
+            "avg_optionality_component",
+            "time_win",
+        ]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+
+    with summary_path.open("w", newline="") as f:
+        fieldnames = [
+            "policy",
+            "runs",
+            "mean_total_time",
+            "mean_tote_switches",
+            "mean_bin_switches",
+            "mean_optionality",
+            "time_win_rate",
+        ]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in summary:
+            writer.writerow(row)
+
+    return details_path, summary_path, len(rows)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Optimize pick order for time and optionality."
     )
-    parser.add_argument("--itemtypes", default="order_itemtypes.csv")
-    parser.add_argument("--quantities", default="order_quantities.csv")
-    parser.add_argument("--totes", default="orders_totes.csv")
+    parser.add_argument("--itemtypes", default="inputs/order_itemtypes.csv")
+    parser.add_argument("--quantities", default="inputs/order_quantities.csv")
+    parser.add_argument("--totes", default="inputs/orders_totes.csv")
     parser.add_argument(
         "--output",
-        default="optimized_sorter_input.csv",
+        default="outputs/optimized_sorter_input.csv",
         help="Sorter input CSV in the same format as MSE433_M3_Example input.csv",
     )
     parser.add_argument(
         "--plan-output",
-        default="optimized_pick_plan.csv",
+        default="outputs/optimized_pick_plan.csv",
         help="Detailed unit-by-unit optimized pick plan (debug/analysis).",
     )
     parser.add_argument(
@@ -666,7 +873,7 @@ def main():
     )
     parser.add_argument(
         "--policy",
-        choices=["greedy", "beam", "both"],
+        choices=["greedy", "beam", "random", "both"],
         default="greedy",
         help="Optimization policy. Use 'both' with --simulate-runs to compare policies.",
     )
@@ -701,10 +908,23 @@ def main():
         default=0.15,
         help="Relative stddev for sampled times in simulations (e.g., 0.15 = 15%).",
     )
-    parser.add_argument("--sim-output", default="simulation_runs.csv")
-    parser.add_argument("--sim-summary-output", default="simulation_summary.csv")
-    parser.add_argument("--pareto-output", default="pareto_front.csv")
+    parser.add_argument("--sim-output", default="outputs/simulation_runs.csv")
+    parser.add_argument("--sim-summary-output", default="outputs/simulation_summary.csv")
+    parser.add_argument("--pareto-output", default="outputs/pareto_front.csv")
+    parser.add_argument("--sensitivity-runs", action="store_true")
+    parser.add_argument("--sens-tote-switch-grid", default="3.0,4.0,5.0")
+    parser.add_argument("--sens-bin-switch-grid", default="0.5,0.75,1.0")
+    parser.add_argument("--sens-place-time-grid", default="1.5,1.75,2.0")
+    parser.add_argument("--sensitivity-output", default="outputs/sensitivity_results.csv")
+    parser.add_argument("--validate-runs", type=int, default=0)
+    parser.add_argument("--validation-output", default="outputs/validation_runs.csv")
+    parser.add_argument(
+        "--validation-summary-output",
+        default="outputs/validation_summary.csv",
+    )
+    parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
+    random.seed(args.seed)
 
     tasks = build_tasks(
         Path(args.itemtypes), Path(args.quantities), Path(args.totes)
@@ -716,6 +936,17 @@ def main():
         raise SystemExit("--num-conveyors must be >= 1.")
     if args.beam_width <= 0 or args.beam_depth <= 0:
         raise SystemExit("--beam-width and --beam-depth must be >= 1.")
+
+    if args.sensitivity_runs:
+        out_path, n_rows = run_sensitivity_analysis(tasks, args)
+        print(f"Wrote {n_rows} sensitivity rows to {out_path}")
+        return
+
+    if args.validate_runs > 0:
+        details_path, summary_path, n_rows = run_validation(tasks, args)
+        print(f"Wrote {n_rows} validation rows to {details_path}")
+        print(f"Wrote validation summary to {summary_path}")
+        return
 
     if args.simulate_runs > 0:
         sim_policy = "both" if args.policy == "both" else args.policy
@@ -743,6 +974,8 @@ def main():
 
     output_path = Path(args.output)
     plan_output_path = Path(args.plan_output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plan_output_path.parent.mkdir(parents=True, exist_ok=True)
     write_sorter_input(plan, output_path, args.num_conveyors)
     write_plan(plan, plan_output_path)
 
