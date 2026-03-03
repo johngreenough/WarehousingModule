@@ -1,5 +1,447 @@
 # Warehousing Module
 
+This project optimizes the **order of totes entering the sortation facility**.
+
+Models live in `models/`, input data in `inputs/`, and outputs in `outputs/`.
+
+## Data Inputs
+
+Core input files:
+
+- `inputs/order_itemtypes.csv`
+- `inputs/order_quantities.csv`
+- `inputs/orders_totes.csv`
+
+How to read them together:
+
+- each row = one order
+- each position in a row = one item slot for that order
+- the same row + same position across all 3 files maps:
+  - item type
+  - quantity
+  - source tote
+
+Example (same row position-aligned):
+
+- item types: `3,4`
+- quantities: `1,1`
+- totes: `1,3`
+
+Means the order needs one unit of type 3 from tote 1 and one unit of type 4 from tote 3.
+
+## Data Generator
+
+- `MSE433_M3_data_generator.ipynb`
+
+Generates:
+
+- canonical files in `inputs/`
+- 500 sampled runs in `inputs/runs/run_0001` ... `run_0500`
+
+## Model Notebooks
+
+### Exact Model
+
+- `models/exact_mip_model.ipynb`
+
+Uses exact optimization (MIP with exact DP fallback) for tote-entry sequencing.
+
+### Baselines
+
+- `models/baseline_greedy.ipynb`
+- `models/baseline_beam.ipynb`
+- `models/baseline_random.ipynb`
+
+### Output Comparison
+
+- `models/compare_model_outputs.ipynb`
+
+Compares per-run model outputs from the summary CSVs.
+
+### ML Competition (3 ML Models)
+
+- `models/ml_competition.ipynb`
+
+Trains and compares three ML sequencing policies:
+
+- linear logistic model
+- neural net (1 hidden layer)
+- tree-based boosted stumps
+
+ML models are trained using exact-policy labels and evaluated with the same objective.
+
+## Objective
+
+All current models use the composite objective:
+
+`objective_score = total_time - OPTIONALITY_LAMBDA * optionality_score`
+
+Where:
+
+- `total_time` includes placement time and switch penalties
+- `optionality_score` rewards sequences that preserve future flexibility
+- lower `objective_score` is better
+
+## Running Across Inputs
+
+In model notebooks:
+
+- `RUN_ID = None` -> canonical `inputs/`
+- `RUN_ID = <int>` -> one run folder `inputs/runs/run_XXXX/`
+- `RUN_ID = "all"` -> all run folders under `inputs/runs/`
+
+## Sorter Schema
+
+Sorter input/output schema:
+
+`conv_num,cirle,pentagon,trapezoid,triangle,star,moon,heart,cross`
+
+`conv_num` is constrained to `0..3` (4 conveyors).
+# Warehousing Module
+
+Models are located in `models/`.
+
+## Exact Optimization Model
+
+- `models/exact_mip_model.ipynb`
+
+Purpose:
+
+- Solve the tote-entry sequence exactly for each generated input instance.
+- Uses MIP (`pulp`) if available; otherwise exact DP fallback.
+
+This notebook explicitly explains:
+
+- objective
+- decision variables
+- constraints
+
+Outputs:
+
+- `outputs/exact_mip_tote_sequence.csv`
+- `outputs/optimized_input_from_exact_mip_model.csv`
+- `outputs/exact_mip_summary.csv`
+
+Input selection in notebook:
+
+- set `RUN_ID = None` to use canonical files in `inputs/`
+- set `RUN_ID = 1..500` to use `inputs/runs/run_XXXX/`
+
+## Baseline Models (separate notebooks)
+
+- `models/baseline_greedy.ipynb`
+- `models/baseline_beam.ipynb`
+- `models/baseline_random.ipynb`
+
+Outputs:
+
+- `outputs/optimized_input_from_baseline_greedy.csv`
+- `outputs/optimized_input_from_baseline_beam.csv`
+- `outputs/optimized_input_from_baseline_random.csv`
+- plus sequence and summary CSV files for each baseline
+
+Input selection in each baseline notebook:
+
+- set `RUN_ID = None` for canonical `inputs/`
+- set `RUN_ID = 1..500` for `inputs/runs/run_XXXX/`
+
+## Data Generation
+
+- `MSE433_M3_data_generator.ipynb`
+
+Now saves:
+
+- canonical current data to `inputs/`
+- 500 sampled runs to `inputs/runs/run_0001` ... `run_0500`
+
+## Input Files
+
+- `inputs/order_itemtypes.csv`
+- `inputs/order_quantities.csv`
+- `inputs/orders_totes.csv`
+
+## Sorter Output Schema
+
+`conv_num,cirle,pentagon,trapezoid,triangle,star,moon,heart,cross`
+
+with `conv_num` constrained to `0..3`.
+# Warehousing Module
+
+This project is streamlined to two model types for tote-entry sequencing.
+
+## 1) Exact Optimization Model
+
+- `exact_mip_model.ipynb`
+
+What it does:
+
+- Solves exact tote-entry order for data in `inputs/`.
+- Uses a MIP formulation when `pulp` is available.
+- Falls back to an exact DP solver if MIP package is not installed.
+
+Inside this notebook, the following are explicitly documented:
+
+- objective function
+- decision variables
+- constraints
+
+Outputs:
+
+- `outputs/exact_mip_tote_sequence.csv`
+- `outputs/optimized_input_from_exact_mip_model.csv`
+- `outputs/exact_mip_summary.csv`
+
+## 2) Baseline Heuristic Models (separate notebooks)
+
+- `baseline_greedy.ipynb`
+- `baseline_beam.ipynb`
+- `baseline_random.ipynb`
+
+These are simpler, faster methods used as comparison baselines.
+
+Outputs:
+
+- `outputs/optimized_input_from_baseline_greedy.csv`
+- `outputs/optimized_input_from_baseline_beam.csv`
+- `outputs/optimized_input_from_baseline_random.csv`
+- plus corresponding sequence and summary CSVs.
+
+## Inputs
+
+Use the generated CSVs in `inputs/`:
+
+- `inputs/order_itemtypes.csv`
+- `inputs/order_quantities.csv`
+- `inputs/orders_totes.csv`
+
+## Sorter Output Schema
+
+All model outputs follow:
+
+`conv_num,cirle,pentagon,trapezoid,triangle,star,moon,heart,cross`
+
+with `conv_num` constrained to `0..3`.
+# Warehousing Module
+
+Primary objective: optimize the **order of totes entering the sortation facility**.
+
+The project uses three top-level notebooks:
+
+- `optimization_model.ipynb`
+- `simulation_model.ipynb`
+- `ml_model.ipynb`
+
+## Inputs
+
+Source files are in `inputs/`:
+
+- `inputs/order_itemtypes.csv`
+- `inputs/order_quantities.csv`
+- `inputs/orders_totes.csv`
+
+Mapping rule:
+
+- row = order
+- column position = item slot
+- same position across files links item type, quantity, and tote
+
+## Notebook Outputs
+
+### `optimization_model.ipynb`
+
+- `outputs/optimized_input_from_optimization_model.csv`
+- `outputs/optimization_model_plan.csv`
+- `outputs/optimization_model_tote_entry_sequence.csv`
+- `outputs/optimization_model_summary.csv`
+- `outputs/optimization_model_exact_validation.csv`
+- `outputs/optimization_model_exact_tote_sequence.csv`
+
+### `simulation_model.ipynb`
+
+- `outputs/simulation_model_results.csv`
+- `outputs/simulation_model_best.csv`
+- `outputs/simulation_model_best_tote_entry_sequence.csv`
+- `outputs/optimized_input_from_simulation_model.csv`
+- `outputs/simulation_model_exact_validation.csv`
+- `outputs/simulation_model_exact_tote_sequence.csv`
+
+### `ml_model.ipynb`
+
+- `outputs/optimized_input_from_ml_model.csv`
+- `outputs/ml_model_selected_config.csv`
+- `outputs/ml_model_tote_entry_sequence.csv`
+- `outputs/ml_model_exact_validation.csv`
+- `outputs/ml_model_exact_tote_sequence.csv`
+
+## Exact Optimality + Validation
+
+Each notebook now includes:
+
+- quantity-conservation validation
+- an exact dynamic-programming tote-sequence benchmark (time-only objective)
+- optimality-gap reporting against the exact benchmark
+
+## Sorter Schema
+
+Generated sorter-input files use:
+
+`conv_num,cirle,pentagon,trapezoid,triangle,star,moon,heart,cross`
+
+`conv_num` is constrained to `0..3`.
+
+See `PROJECT_CONTEXT.md` for full technical context.
+# Warehousing Module
+
+The primary thing being optimized is the **order of totes entering the sortation facility**.
+
+This repo uses three top-level model notebooks (no model folders):
+
+- `optimization_model.ipynb`
+- `simulation_model.ipynb`
+- `ml_model.ipynb`
+
+## Inputs
+
+All source data is in `inputs/`:
+
+- `inputs/order_itemtypes.csv`
+- `inputs/order_quantities.csv`
+- `inputs/orders_totes.csv`
+
+Alignment rule:
+
+- row = order
+- position in row = item slot
+- same position across all 3 files links item type, quantity, and tote
+
+## Models
+
+### `optimization_model.ipynb`
+
+Directly optimizes tote-entry sequence using optionality-aware scoring.
+
+Outputs:
+
+- `outputs/optimized_input_from_optimization_model.csv`
+- `outputs/optimization_model_plan.csv`
+- `outputs/optimization_model_tote_entry_sequence.csv`
+- `outputs/optimization_model_summary.csv`
+- `outputs/optimization_model_exact_validation.csv`
+- `outputs/optimization_model_exact_tote_sequence.csv`
+
+### `simulation_model.ipynb`
+
+Runs many stochastic scenarios and selects the best tote-entry sequence from simulations.
+
+Outputs:
+
+- `outputs/simulation_model_results.csv`
+- `outputs/simulation_model_best.csv`
+- `outputs/simulation_model_best_tote_entry_sequence.csv`
+- `outputs/optimized_input_from_simulation_model.csv`
+- `outputs/simulation_model_exact_validation.csv`
+- `outputs/simulation_model_exact_tote_sequence.csv`
+
+### `ml_model.ipynb`
+
+Uses simulation results to train a lightweight ML predictor and chooses a tote-entry configuration.
+
+Outputs:
+
+- `outputs/optimized_input_from_ml_model.csv`
+- `outputs/ml_model_selected_config.csv`
+- `outputs/ml_model_tote_entry_sequence.csv`
+- `outputs/ml_model_exact_validation.csv`
+- `outputs/ml_model_exact_tote_sequence.csv`
+
+## Exact Optimality Add-On
+
+Each notebook now includes an additional **exact dynamic-programming tote-sequence benchmark** (time-only objective for the same generated data and timing assumptions).
+
+This provides:
+
+- exact best tote sequence under the benchmark objective
+- optimality gap of the notebook-selected sequence vs exact benchmark
+- quantity-conservation validation checks
+
+## Sorter Input Schema
+
+Sorter-input files use:
+
+`conv_num,cirle,pentagon,trapezoid,triangle,star,moon,heart,cross`
+
+`conv_num` is constrained to 4 conveyors (`0..3`).
+
+## Full Context
+
+See `PROJECT_CONTEXT.md` for the full technical walkthrough.
+# Warehousing Module
+
+This project uses **three top-level model notebooks** to determine the best input into the sorter machine:
+
+- `optimization_model.ipynb`
+- `simulation_model.ipynb`
+- `ml_model.ipynb`
+
+For full technical context of all components, see `PROJECT_CONTEXT.md`.
+
+## Data Inputs
+
+Canonical inputs are in `inputs/`:
+
+- `inputs/order_itemtypes.csv`
+- `inputs/order_quantities.csv`
+- `inputs/orders_totes.csv`
+
+Interpretation:
+
+- each row = one order
+- each position in the row = one item slot
+- matching position across the 3 files gives:
+  - item type
+  - quantity
+  - source tote
+
+## Model Notebooks
+
+### `optimization_model.ipynb`
+
+Direct optimization model using optionality-aware sequencing.
+
+Outputs:
+
+- `outputs/optimized_input_from_optimization_model.csv`
+- `outputs/optimization_model_plan.csv`
+- `outputs/optimization_model_summary.csv`
+
+### `simulation_model.ipynb`
+
+Stochastic simulation over many sampled timing assumptions and policies to identify the best realized sorter input.
+
+Outputs:
+
+- `outputs/simulation_model_results.csv`
+- `outputs/simulation_model_best.csv`
+- `outputs/optimized_input_from_simulation_model.csv`
+
+### `ml_model.ipynb`
+
+Machine learning model (linear regression on simulation data) to predict best policy/parameter configuration, then generate sorter input from that predicted best setup.
+
+Outputs:
+
+- `outputs/optimized_input_from_ml_model.csv`
+- `outputs/ml_model_selected_config.csv`
+
+## Sorter Input Schema
+
+Generated sorter input files use:
+
+`conv_num,cirle,pentagon,trapezoid,triangle,star,moon,heart,cross`
+
+`conv_num` is constrained to 4 conveyors (`0..3`).
+# Warehousing Module
+
 ## Data Explanation
 
 The order data is split across three CSV files (in `inputs/`) that must be read together:
