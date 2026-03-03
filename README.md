@@ -1,5 +1,123 @@
 # Warehousing Module
 
+This repository studies tote sequencing for sortation: choosing the **order that totes enter the facility** to minimize processing time while preserving future flexibility (optionality).
+
+## Repository Layout
+
+- `models/` - notebook models and comparison notebooks
+- `inputs/` - canonical input CSVs and generated run folders
+- `outputs/` - model result CSVs
+- `MSE433_M3_data_generator.ipynb` - input data generation
+
+## Data Model
+
+Three CSV files define demand and tote sources:
+
+- `order_itemtypes.csv`
+- `order_quantities.csv`
+- `orders_totes.csv`
+
+Interpretation rule:
+
+- row index = order
+- column position within row = item slot
+- same row + same position across all files = one mapped item record
+
+For a row with:
+
+- types: `3,4`
+- quantities: `1,1`
+- totes: `1,3`
+
+The order needs one unit of type 3 from tote 1 and one unit of type 4 from tote 3.
+
+## Input Generation
+
+Use `MSE433_M3_data_generator.ipynb` to create test data.
+
+It writes:
+
+- canonical files to `inputs/`
+- 500 sampled scenarios to `inputs/runs/run_0001` ... `inputs/runs/run_0500`
+
+## Objective Used in Models
+
+Current notebooks optimize a shared composite objective:
+
+`objective_score = total_time - OPTIONALITY_LAMBDA * optionality_score`
+
+Where:
+
+- `total_time` includes placement time and switching penalties
+- `optionality_score` rewards choices that keep more feasible future actions open
+- lower `objective_score` is better
+
+## Model Notebooks
+
+### 1) Exact Optimization
+
+- `models/exact_mip_model.ipynb`
+
+Finds exact best tote sequence for the objective (MIP when available, exact DP fallback).
+
+Outputs include per-run and aggregate summaries in `outputs/`, including objective components.
+
+### 2) Heuristic Baselines
+
+- `models/baseline_greedy.ipynb`
+- `models/baseline_beam.ipynb`
+- `models/baseline_random.ipynb`
+
+All baselines use the same objective and produce per-run outputs and all-runs summaries for comparison.
+
+### 3) Model Output Comparison
+
+- `models/compare_model_outputs.ipynb`
+
+Reads summary CSVs and creates cross-model comparison tables:
+
+- `outputs/model_output_comparison.csv`
+- `outputs/model_output_comparison_summary.csv`
+
+### 4) ML Competition (Three ML Models)
+
+- `models/ml_competition.ipynb`
+
+Trains and evaluates three ML policies against exact-labeled behavior:
+
+- linear logistic model
+- 1-hidden-layer neural net
+- tree-based boosted stumps
+
+Produces:
+
+- `outputs/ml_models_per_run.csv`
+- `outputs/ml_models_summary.csv`
+
+## Run Selection in Notebooks
+
+Most model notebooks support:
+
+- `RUN_ID = None` -> use canonical files in `inputs/`
+- `RUN_ID = <int>` -> use one run folder `inputs/runs/run_XXXX/`
+- `RUN_ID = "all"` -> process all run folders under `inputs/runs/`
+
+## Sorter Schema
+
+Sorter-format CSV columns:
+
+`conv_num,cirle,pentagon,trapezoid,triangle,star,moon,heart,cross`
+
+`conv_num` is constrained to `0..3` (4 conveyors).
+
+## Recommended Workflow
+
+1. Run `MSE433_M3_data_generator.ipynb` to refresh `inputs/` and `inputs/runs/`.
+2. Run `models/exact_mip_model.ipynb` and baseline notebooks with `RUN_ID = "all"`.
+3. Run `models/compare_model_outputs.ipynb` for aggregate model ranking.
+4. Run `models/ml_competition.ipynb` to compare ML policies and gaps vs exact.
+# Warehousing Module
+
 This project optimizes the **order of totes entering the sortation facility**.
 
 Models live in `models/`, input data in `inputs/`, and outputs in `outputs/`.
