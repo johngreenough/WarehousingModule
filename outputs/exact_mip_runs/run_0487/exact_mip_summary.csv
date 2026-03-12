@@ -1,0 +1,2 @@
+run_name,solver_used,total_time,optionality_score,objective_score,solver_objective,n_totes,n_units
+run_0487,gurobi,68.5,-0.40000000000000024,68.64,68.64,5,27

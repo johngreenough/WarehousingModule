@@ -1,0 +1,5 @@
+model,n_runs,mean_objective_score,win_count
+exact_mip,500,59.24272666666667,500
+baseline_greedy,500,60.676793333333336,0
+baseline_beam,500,59.90094666666667,0
+baseline_random,500,59.27422666666667,0
