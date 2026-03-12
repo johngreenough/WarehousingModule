@@ -60,13 +60,13 @@ Where:
 
 ### `models/exact_mip_model.ipynb`
 
-- Solves tote sequencing exactly (MIP if available, exact DP fallback).
+- Solves tote sequencing exactly (MIP).
 - Produces run-level outputs and all-runs summary.
 - Serves as the benchmark for gap/comparison analysis.
 
 ### `models/baseline_greedy.ipynb`
 
-- Chooses next tote using immediate objective increment.
+- Chooses next tote & item using immediate objective increment.
 - Fast heuristic baseline.
 
 ### `models/baseline_beam.ipynb`
