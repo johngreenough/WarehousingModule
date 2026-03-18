@@ -1,2 +1,0 @@
-run_name,solver_used,total_time,optionality_score,objective_score,solver_objective,n_totes,n_units
-run_0153,gurobi,87.5,-3.400000000000001,88.69,88.69,7,32

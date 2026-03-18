@@ -1,2 +1,2 @@
-run_name,trials,total_time,optionality_score,objective_score,n_totes,n_units
-run_0019,2000,68.0,8.399999999999997,65.06,7,23
+run_name,trials,total_time,sum_order_completion_time,optionality_score,objective_score,n_totes,n_units
+run_0019,2000,64.75,184.0,-4.199999999999999,185.47,6,23

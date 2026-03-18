@@ -1,2 +1,2 @@
-run_name,beam_width,total_time,optionality_score,objective_score,n_totes,n_units
-run_0012,12,84.25,4.599999999999999,82.64,7,31
+run_name,beam_width,total_time,sum_order_completion_time,optionality_score,objective_score,n_totes,n_units
+run_0012,12,91.25,523.0,0.7999999999999996,522.72,8,31

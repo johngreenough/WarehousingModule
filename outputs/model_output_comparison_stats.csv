@@ -1,0 +1,7 @@
+model_a,model_b,n_common_runs,mean_a,mean_b,paired_ttest_pval,wilcoxon_pval,significant,conclusion
+exact_mip,baseline_greedy,50,229.07613333333336,335.73040000000003,3.0015760715723744e-13,3.522009153511104e-09,True,exact_mip significantly better
+exact_mip,baseline_beam,50,229.07613333333336,319.99733333333336,3.68377805786811e-10,1.680295787277147e-07,True,exact_mip significantly better
+exact_mip,baseline_random,50,229.07613333333336,231.6720666666667,0.001107310853831554,0.00019643672621231134,True,exact_mip significantly better
+baseline_greedy,baseline_beam,50,335.73040000000003,319.99733333333336,6.863680085787226e-06,1.1764211018588728e-05,True,baseline_beam significantly better
+baseline_greedy,baseline_random,50,335.73040000000003,231.6720666666667,1.8828004711281262e-13,3.522009153511104e-09,True,baseline_random significantly better
+baseline_beam,baseline_random,50,319.99733333333336,231.6720666666667,2.9526376530493563e-10,1.680295787277147e-07,True,baseline_random significantly better

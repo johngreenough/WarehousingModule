@@ -1,2 +1,2 @@
-run_name,total_time,optionality_score,objective_score,n_totes,n_units
-run_0043,53.0,2.9999999999999996,51.95,5,19
+run_name,total_time,sum_order_completion_time,optionality_score,objective_score,n_totes,n_units
+run_0043,53.75,232.25,0.9999999999999996,231.9,5,19
